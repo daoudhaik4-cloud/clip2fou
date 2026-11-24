@@ -1,0 +1,65 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width">
+<title>Clip2fou Poster – Publier</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:520px;margin:20px auto;padding:0 16px;background:#fff;color:#111}
+.u{display:flex;gap:10px;align-items:center}.u img{width:44px;height:44px;border-radius:50%;background:#ddd}
+video{width:100%;max-height:60vh;background:#000;border-radius:8px}
+textarea,select{width:100%;font-size:16px;padding:8px;box-sizing:border-box}
+label{display:block;margin:6px 0}button{width:100%;padding:14px;font-size:18px;background:#fe2c55;color:#fff;border:0;border-radius:8px;cursor:pointer}
+button:disabled{opacity:.5}.m{padding:10px;background:#f2f2f2;border-radius:8px}small{color:#555}
+</style>
+<h2>Clip2fou Poster</h2>
+<div id=login hidden><p>Connecte ton compte TikTok pour publier.</p><button id=lb>Se connecter avec TikTok</button></div>
+<div id=app hidden>
+<div class=u><img id=av alt=""><b id=nick></b><small id=user></small></div>
+<p id=msg class=m hidden></p>
+<p>Vidéo<br><select id=video></select></p>
+<video id=prev controls></video>
+<p>Légende<br><textarea id=title rows=3 maxlength=2200></textarea></p>
+<p>Qui peut voir cette vidéo ?<br><select id=privacy><option value="" selected disabled>Choisir…</option></select></p>
+<label><input type=checkbox id=comment> Autoriser les commentaires</label>
+<label><input type=checkbox id=duet> Autoriser les duos</label>
+<label><input type=checkbox id=stitch> Autoriser les stitchs</label>
+<p><small id=max></small><br><small>En publiant, tu acceptes la
+<a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target=_blank>Music Usage Confirmation</a> de TikTok.
+Le traitement peut prendre quelques minutes avant que la vidéo apparaisse sur ton profil.</small></p>
+<button id=post>Publier</button>
+</div>
+<p><small><a href=terms.html>Terms</a> · <a href=privacy.html>Privacy</a></small></p>
+<script>
+const API="http://localhost:8766", KEY="sbawqb2aojhqaep8q7", REDIRECT=location.origin+location.pathname;
+const $=id=>document.getElementById(id);
+const LABELS={PUBLIC_TO_EVERYONE:"Tout le monde",MUTUAL_FOLLOW_FRIENDS:"Amis",FOLLOWER_OF_CREATOR:"Abonnés",SELF_ONLY:"Moi uniquement"};
+function say(t){$("msg").hidden=false;$("msg").textContent=t}
+async function hex(s){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return[...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join("")}
+$("lb").onclick=async()=>{
+  const v=[...crypto.getRandomValues(new Uint8Array(48))].map(b=>"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b%64]).join(""),st=crypto.randomUUID();
+  sessionStorage.v=v;sessionStorage.st=st;
+  location="https://www.tiktok.com/v2/auth/authorize/?"+new URLSearchParams({client_key:KEY,response_type:"code",
+    scope:"user.info.basic,video.publish,video.upload,video.list",redirect_uri:REDIRECT,state:st,code_challenge:await hex(v),code_challenge_method:"S256"});
+};
+async function load(){
+  const q=new URLSearchParams(location.search);
+  if(q.get("code")&&q.get("state")===sessionStorage.st){
+    const r=await fetch(API+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:q.get("code"),verifier:sessionStorage.v,redirect_uri:REDIRECT})});
+    history.replaceState(null,"",REDIRECT);
+    if(!r.ok){$("login").hidden=false;return alert((await r.json()).error)}
+  }
+  let r;try{r=await fetch(API+"/api/info")}catch(e){document.body.insertAdjacentHTML("beforeend","<p class=m>Le serveur local ne répond pas (python publier.py).</p>");return}
+  const i=await r.json();if(!r.ok){$("login").hidden=false;return}
+  $("app").hidden=false;$("av").src=i.avatar_url;$("nick").textContent=i.creator_nickname;$("user").textContent="@"+i.creator_username;
+  for(const p of i.privacy_level_options)$("privacy").add(new Option(LABELS[p]||p,p));
+  for(const v of i.videos)$("video").add(new Option(v,v));
+  for(const [k,off] of [["comment",i.comment_disabled],["duet",i.duet_disabled],["stitch",i.stitch_disabled]]){$(k).disabled=off;$(k).checked=!off;if(off)$(k).parentNode.append(" (désactivé dans tes réglages TikTok)")}
+  $("max").textContent="Durée max : "+i.max_video_post_duration_sec+" s.";
+  const show=()=>$("prev").src=API+"/v/"+encodeURIComponent($("video").value);$("video").onchange=show;show();
+}
+$("post").onclick=async()=>{
+  if(!$("privacy").value)return say("Choisis qui peut voir la vidéo.");
+  $("post").disabled=true;say("Envoi en cours…");
+  const r=await fetch(API+"/api/publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({video:$("video").value,title:$("title").value,privacy:$("privacy").value,comment:$("comment").checked,duet:$("duet").checked,stitch:$("stitch").checked})});
+  const s=await r.json();$("post").disabled=false;
+  say(!r.ok?"Erreur : "+s.error:s.status==="PUBLISH_COMPLETE"?"Publiée ✅":"Statut : "+s.status+" "+(s.fail_reason||""));
+};
+load();
+</script>
