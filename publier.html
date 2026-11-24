@@ -44,7 +44,7 @@ async function load(){
     const r=await fetch(API+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:q.get("code"),verifier:sessionStorage.v,redirect_uri:REDIRECT})});
     history.replaceState(null,"",REDIRECT);
     if(!r.ok){$("login").hidden=false;return alert((await r.json()).error)}
-  }
+  } else {$("login").hidden=false;return}  // always start with TikTok login
   let r;try{r=await fetch(API+"/api/info")}catch(e){document.body.insertAdjacentHTML("beforeend","<p class=m>Le serveur local ne répond pas (python publier.py).</p>");return}
   const i=await r.json();if(!r.ok){$("login").hidden=false;return}
   $("app").hidden=false;$("av").src=i.avatar_url;$("nick").textContent=i.creator_nickname;$("user").textContent="@"+i.creator_username;
