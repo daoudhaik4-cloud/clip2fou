@@ -27,7 +27,7 @@ Le traitement peut prendre quelques minutes avant que la vidéo apparaisse sur t
 </div>
 <p><small><a href=terms.html>Terms</a> · <a href=privacy.html>Privacy</a></small></p>
 <script>
-const API="http://localhost:8766", KEY="sbawqb2aojhqaep8q7", REDIRECT=location.origin+location.pathname;
+const API=(()=>{const a=new URLSearchParams(location.search).get("api");if(a)localStorage.api=a;return localStorage.api||"http://localhost:8766"})(), KEY="sbawqb2aojhqaep8q7", REDIRECT=location.origin+location.pathname;
 const $=id=>document.getElementById(id);
 const LABELS={PUBLIC_TO_EVERYONE:"Tout le monde",MUTUAL_FOLLOW_FRIENDS:"Amis",FOLLOWER_OF_CREATOR:"Abonnés",SELF_ONLY:"Moi uniquement"};
 function say(t){$("msg").hidden=false;$("msg").textContent=t}
